@@ -40,32 +40,33 @@ ALGO_COLOR = {'BFS': '#4d9eff', 'DFS': '#f2a541', 'A*': '#68b36a'}
 
 THEMES = {
     'light': {
-        'bg': '#f3efe6', 'panel': '#ffffff', 'panel_edge': '#e2dccd',
-        'board': '#b8ab9c', 'empty': '#cdc0b2', 'ink': '#5c5347',
-        'muted': '#9a8f7f', 'tile_ink': '#6b6156', 'tile_ink_light': '#ffffff',
-        'overlay': '#f3efe6',
+        'bg': '#faf8ef', 'panel': '#ffffff', 'panel_edge': '#e2dccd',
+        'board': '#bbada0', 'empty': '#cdc1b4', 'ink': '#776e65',
+        'muted': '#9a8f7f', 'tile_ink': '#776e65', 'tile_ink_light': '#f9f6f2',
+        'overlay': '#faf8ef', 'accent_soft': '#fbe9e1',
     },
     'dark': {
-        'bg': '#1d1f26', 'panel': '#262932', 'panel_edge': '#353945',
+        'bg': '#1d1f26', 'panel': '#262932', 'panel_edge': '#3a3f4d',
         'board': '#14161b', 'empty': '#2b2f3a', 'ink': '#f0ead9',
-        'muted': '#8b90a0', 'tile_ink': '#6b6156', 'tile_ink_light': '#ffffff',
-        'overlay': '#1d1f26',
+        'muted': '#8b90a0', 'tile_ink': '#776e65', 'tile_ink_light': '#ffffff',
+        'overlay': '#1d1f26', 'accent_soft': '#33272a',
     },
 }
 TILE_COLORS = {
     2: '#eee4da', 4: '#ede0c8', 8: '#f2b179', 16: '#f59563',
     32: '#f67c5f', 64: '#f65e3b', 128: '#edcf72', 256: '#edcc61',
     512: '#edc850', 1024: '#edc53f', 2048: '#edc22e',
+    4096: '#5fca9d', 8192: '#4fb3e8', 16384: '#8a7cf5',
 }
 SUPER_TILE = '#3c3a32'
 ACCENT = '#e85d3d'
 
 
 class Game2048UI:
-    CELL = 118
-    GAP = 12
-    PAD = 14
-    RADIUS = 12
+    CELL = 100
+    GAP = 10
+    PAD = 12
+    RADIUS = 10
 
     def __init__(self, root):
         self.root = root
@@ -109,17 +110,17 @@ class Game2048UI:
     # ================= layout =================
     def _build(self):
         self.main = tk.Frame(self.root)
-        self.main.pack(fill='both', expand=True, padx=18, pady=14)
+        self.main.pack(fill='both', expand=True, padx=14, pady=10)
 
         header = tk.Frame(self.main)
-        header.pack(fill='x', pady=(0, 10))
+        header.pack(fill='x', pady=(0, 8))
         title_box = tk.Frame(header)
         title_box.pack(side='left')
         self.title_lbl = tk.Label(title_box, text='2048',
-                                  font=('Segoe UI', 44, 'bold'))
+                                  font=('Segoe UI', 34, 'bold'))
         self.title_lbl.pack(anchor='w')
         self.sub_lbl = tk.Label(title_box, text='A I   L A B   ·   BFS   DFS   A*',
-                                font=('Segoe UI', 10, 'bold'))
+                                font=('Segoe UI', 9, 'bold'))
         self.sub_lbl.pack(anchor='w')
 
         self.cards = tk.Frame(header)
@@ -127,11 +128,11 @@ class Game2048UI:
         self.card_vals = {}
         for key, var in (('SCORE', self.score_var), ('BEST', self.best_var),
                          ('MOVES', self.moves_var), ('MAX', self.max_var)):
-            card = tk.Frame(self.cards, padx=14, pady=6,
+            card = tk.Frame(self.cards, padx=10, pady=4,
                             highlightthickness=1)
-            card.pack(side='left', padx=5)
+            card.pack(side='left', padx=4)
             tk.Label(card, text=key, font=('Segoe UI', 8, 'bold')).pack()
-            val = tk.Label(card, textvariable=var, font=('Segoe UI', 18, 'bold'))
+            val = tk.Label(card, textvariable=var, font=('Segoe UI', 15, 'bold'))
             val.pack()
             self.card_vals[key] = card
 
@@ -140,7 +141,7 @@ class Game2048UI:
 
         # ---- board side ----
         left = tk.Frame(body)
-        left.pack(side='left')
+        left.pack(side='left', anchor='n')
         side = self.size * self.CELL + (self.size + 1) * self.GAP + 2 * self.PAD
         self.canvas = tk.Canvas(left, width=side, height=side,
                                 highlightthickness=0, bd=0)
@@ -152,13 +153,31 @@ class Game2048UI:
         self.goal_lbl.pack(side='left')
         self.goal_var = tk.StringVar(value='2')
         tk.Label(prow, textvariable=self.goal_var, font=('Segoe UI', 9)).pack(side='right')
-        self.goal_bar = ttk.Progressbar(prow, length=220, mode='determinate', maximum=11)
+        self.goal_bar = ttk.Progressbar(prow, length=180, mode='determinate', maximum=11)
         self.goal_bar.pack(side='right', padx=8)
 
-        # ---- side panel ----
-        self.side = tk.Frame(body, width=310)
-        self.side.pack(side='left', fill='y', padx=(16, 0))
-        self.side.pack_propagate(False)
+        # ---- side panel (scrollable so Start AI is never cut off) ----
+        self.side_outer = tk.Frame(body, width=320)
+        self.side_outer.pack(side='left', fill='y', padx=(14, 0))
+        self.side_outer.pack_propagate(False)
+        self.side_canvas = tk.Canvas(self.side_outer, highlightthickness=0, bd=0)
+        self.side_scroll = ttk.Scrollbar(self.side_outer, orient='vertical',
+                                         command=self.side_canvas.yview)
+        self.side_canvas.configure(yscrollcommand=self.side_scroll.set)
+        self.side_scroll.pack(side='right', fill='y')
+        self.side_canvas.pack(side='left', fill='both', expand=True)
+        self.side = tk.Frame(self.side_canvas)
+        self._side_win = self.side_canvas.create_window((0, 0), window=self.side,
+                                                        anchor='nw')
+        self.side.bind('<Configure>',
+                       lambda e: self.side_canvas.configure(
+                           scrollregion=self.side_canvas.bbox('all')))
+        self.side_canvas.bind('<Configure>',
+                              lambda e: self.side_canvas.itemconfig(
+                                  self._side_win, width=e.width))
+        # mousewheel scrolling over the panel
+        self.side_canvas.bind('<Enter>', lambda e: self._bind_wheel(True))
+        self.side_canvas.bind('<Leave>', lambda e: self._bind_wheel(False))
 
         self.play_panel = self._section('PLAY')
         brow = tk.Frame(self.play_panel)
@@ -167,12 +186,19 @@ class Game2048UI:
         self.new_btn.pack(side='left', expand=True, fill='x')
         self.undo_btn = self._big_btn(brow, '↩ Undo', self.undo)
         self.undo_btn.pack(side='left', expand=True, fill='x', padx=(8, 0))
-        self.theme_btn = self._big_btn(brow, '☾', self.toggle_theme, w=3)
-        self.theme_btn.pack(side='left', padx=(8, 0))
-        # D-pad
+        brow2 = tk.Frame(self.play_panel)
+        brow2.pack(fill='x', pady=(6, 0))
+        self.theme_btn = self._big_btn(brow2, '☾ Dark', self.toggle_theme)
+        self.theme_btn.pack(side='left', expand=True, fill='x')
+        self.help_btn = self._big_btn(brow2, '? Help', self.show_help, bg='#6c757d')
+        self.help_btn.pack(side='left', expand=True, fill='x', padx=(8, 0))
+        # D-pad (3-col grid so UP sits centered over DOWN)
         pad = tk.Frame(self.play_panel)
         pad.pack(pady=8)
-        self._pad_btn(pad, '↑', 0, 0, 1)
+        pad.grid_columnconfigure(0, weight=1)
+        pad.grid_columnconfigure(1, weight=1)
+        pad.grid_columnconfigure(2, weight=1)
+        self._pad_btn(pad, '↑', 0, 1, 0)
         self._pad_btn(pad, '←', 1, 0, 3)
         self._pad_btn(pad, '↓', 1, 1, 2)
         self._pad_btn(pad, '→', 1, 2, 1)
@@ -250,41 +276,57 @@ class Game2048UI:
         self.tour_btn.pack(side='left', padx=4)
 
         self.log_panel = self._section('MOVE LOG')
-        self.log = tk.Listbox(self.log_panel, height=5, relief='flat',
-                              highlightthickness=1, font=('Consolas', 9))
-        self.log.pack(fill='x')
+        logrow = tk.Frame(self.log_panel)
+        logrow.pack(fill='x')
+        self.log = tk.Listbox(logrow, height=5, relief='flat', activestyle='none',
+                              highlightthickness=1, font=('Consolas', 9),
+                              selectbackground=ACCENT, selectforeground='white')
+        self.log.pack(side='left', fill='x', expand=True)
+        logscroll = ttk.Scrollbar(logrow, orient='vertical', command=self.log.yview)
+        logscroll.pack(side='right', fill='y')
+        self.log.configure(yscrollcommand=logscroll.set)
+        tk.Button(self.log_panel, text='Clear log', relief='flat', bd=0,
+                  cursor='hand2', font=('Segoe UI', 8),
+                  command=lambda: self.log.delete(0, 'end')).pack(anchor='e', pady=(4, 0))
 
         foot = tk.Frame(self.main)
         foot.pack(fill='x', pady=(10, 0))
         self.status_lbl = tk.Label(foot, textvariable=self.status_var,
                                    font=('Segoe UI', 9))
         self.status_lbl.pack(side='left')
-        tk.Label(foot, text='U undo · N new · Space start/stop AI',
-                 font=('Segoe UI', 8)).pack(side='right')
+        self.hint_lbl = tk.Label(foot, text='U undo · N new · T theme · ? help · Space AI',
+                                 font=('Segoe UI', 8))
+        self.hint_lbl.pack(side='right')
 
         self._bind_keys()
 
     def _section(self, title):
-        box = tk.LabelFrame(self.main, text=f'  {title}  ', font=('Segoe UI', 9, 'bold'),
-                            padx=10, pady=8)
-        # reparent into side panel
-        box.master = self.side
-        box.pack(in_=self.side, fill='x', pady=(0, 10))
+        box = tk.LabelFrame(self.side, text=f'  {title}  ',
+                            font=('Segoe UI', 9, 'bold'), padx=10, pady=8)
+        box.pack(fill='x', pady=(0, 10))
         return box
 
     def _big_btn(self, parent, text, cmd, bg=None, w=None):
+        base = bg or '#8f7a66'
         b = tk.Button(parent, text=text, command=cmd, relief='flat', bd=0,
                       cursor='hand2', padx=10, pady=7, font=('Segoe UI', 10, 'bold'),
-                      fg='white', bg=bg or '#8f7a66', activeforeground='white',
-                      width=w)
-        b.bind('<Enter>', lambda e, b=b: b.config(bg=self._hover(b.cget('bg'))))
-        b.bind('<Leave>', lambda e, b=b, bg=bg: b.config(bg=bg or '#8f7a66'))
+                      fg='white', bg=base, activeforeground='white',
+                      activebackground=self._hover(base), width=w)
+        b._base_bg = base
+        b.bind('<Enter>', lambda e, b=b: b.config(bg=self._hover(b._base_bg)))
+        b.bind('<Leave>', lambda e, b=b: b.config(bg=b._base_bg))
         return b
+
+    def _set_btn_bg(self, btn, color):
+        btn._base_bg = color
+        btn.config(bg=color, activebackground=self._hover(color))
 
     @staticmethod
     def _hover(color):
-        return {'#e85d3d': '#f06e4f', '#8f7a66': '#9f8b77',
-                '#68b36a': '#7cc47e', '#c2573b': '#d4684a'}.get(str(color), str(color))
+        table = {'#e85d3d': '#f06e4f', '#8f7a66': '#9f8b77',
+                 '#68b36a': '#7cc47e', '#c2573b': '#d4684a',
+                 '#4d9eff': '#6db0ff', '#f2a541': '#f5b566'}
+        return table.get(str(color), str(color))
 
     def _pad_btn(self, parent, text, r, c, direction):
         b = tk.Button(parent, text=text, width=4, font=('Segoe UI', 13, 'bold'),
@@ -296,8 +338,11 @@ class Game2048UI:
 
     def _pad_style(self, b):
         T = self.T
-        b.config(bg=T['panel'], fg=T['ink'],
+        b.config(bg=T['panel'], fg=T['ink'], activebackground=T['panel_edge'],
+                 activeforeground=T['ink'],
                  highlightbackground=T['panel_edge'], highlightthickness=1)
+        b.bind('<Enter>', lambda e, b=b: b.config(bg=self.T['panel_edge']))
+        b.bind('<Leave>', lambda e, b=b: b.config(bg=self.T['panel']))
 
     def _slider(self, parent, label, var, frm, to, cmd, resolution=1,
                   captions=None):
@@ -365,8 +410,19 @@ class Game2048UI:
         self.title_lbl.configure(bg=T['bg'], fg=T['ink'])
         self.sub_lbl.configure(bg=T['bg'], fg=ALGO_COLOR[self.algo_var.get()])
         self.status_lbl.configure(bg=T['bg'], fg=T['muted'])
+        try:
+            self.hint_lbl.configure(bg=T['bg'], fg=T['muted'])
+        except Exception:
+            pass
         self.goal_lbl.configure(bg=T['bg'], fg=T['muted'])
-        self.canvas.configure(bg=T['board'])
+        try:
+            self.side_outer.configure(bg=T['bg'])
+            self.side_canvas.configure(bg=T['bg'])
+            self.side.configure(bg=T['bg'])
+        except Exception:
+            pass
+        self.canvas.configure(bg=T['board'], highlightthickness=1,
+                              highlightbackground=T['panel_edge'])
         for card in self.card_vals.values():
             card.configure(bg=T['panel'], highlightbackground=T['panel_edge'])
             for ch in card.winfo_children():
@@ -378,7 +434,7 @@ class Game2048UI:
                 self._paint(ch, T)
         self.log.configure(bg=T['panel'], fg=T['ink'],
                            highlightbackground=T['panel_edge'])
-        self.theme_btn.config(text='☀' if self.theme_name == 'dark' else '☾')
+        self.theme_btn.config(text='☀ Light' if self.theme_name == 'dark' else '☾ Dark')
         self.pick_algo(self.algo_var.get())
         # restore hand-tuned details that the generic painter flattens
         try:
@@ -404,13 +460,21 @@ class Game2048UI:
     def _paint(self, w, T):
         try:
             cls = w.winfo_class()
-            if cls in ('Frame', 'Label', 'Labelframe'):
-                w.configure(bg=T['bg'] if cls != 'Frame' or w.master in (self.play_panel,) else T['bg'])
+            if cls in ('Frame', 'Labelframe'):
+                w.configure(bg=T['bg'])
             if cls == 'Label':
-                w.configure(bg=w.master.cget('bg'), fg=T['ink'])
+                # don't stomp on colored dots / buttons / readout
+                try:
+                    if w not in (getattr(self, 'ai_stripe', None),):
+                        w.configure(bg=w.master.cget('bg'), fg=T['ink'])
+                except Exception:
+                    pass
         except Exception:
             pass
         for ch in w.winfo_children():
+            # buttons manage their own colors (algo select, New Game, AI play)
+            if ch.winfo_class() == 'Button':
+                continue
             self._paint(ch, T)
 
     # ================= board drawing =================
@@ -426,7 +490,7 @@ class Game2048UI:
                x2 - r, y2, x1 + r, y2, x1, y2 - r, x1, y1 + r]
         return self.canvas.create_polygon(pts, smooth=True, **kw)
 
-    def refresh(self):
+    def refresh(self, pop_cells=()):
         for t in self._timers:
             try:
                 self.root.after_cancel(t)
@@ -436,6 +500,7 @@ class Game2048UI:
         self.canvas.delete('all')
         self._overlay_ids = []
         T = self.T
+        pop = set(pop_cells)
         for r in range(self.size):
             for c in range(self.size):
                 v = self.game.board[r][c]
@@ -443,22 +508,29 @@ class Game2048UI:
                 if v == 0:
                     self._round(x1, y1, x2, y2, fill=T['empty'], outline='')
                 else:
-                    self._round(x1, y1, x2, y2, fill=TILE_COLORS.get(v, SUPER_TILE),
-                                outline='')
+                    grow = 7 if (r, c) in pop else 0
+                    glow = ACCENT if (r, c) in self._hl and v >= 128 else ''
+                    if glow:
+                        self._round(x1, y1, x2, y2, grow=3, fill=glow, outline='')
+                    self._round(x1, y1, x2, y2, grow=grow,
+                                fill=TILE_COLORS.get(v, SUPER_TILE), outline='')
                     fg = T['tile_ink'] if v <= 4 else T['tile_ink_light']
                     self.canvas.create_text((x1 + x2) // 2, (y1 + y2) // 2,
                                             text=str(v), fill=fg,
                                             font=('Segoe UI', self._font_size(v), 'bold'))
-                if (r, c) in self._hl:
-                    self.canvas.create_rectangle(x1 + 2, y1 + 2, x2 - 2, y2 - 2,
-                                                 outline=ACCENT, width=4)
+                    if (r, c) in self._hl and v < 128:
+                        self.canvas.create_rectangle(x1 + 2, y1 + 2, x2 - 2, y2 - 2,
+                                                     outline=ACCENT, width=3)
         if self._hl:
             self._timers.append(self.root.after(260, self._clear_flash))
+        if pop:
+            # settle the "pop" back to normal size shortly after
+            self._timers.append(self.root.after(130, self._clear_flash))
 
     @staticmethod
     def _font_size(v):
         n = len(str(v))
-        return {1: 52, 2: 48, 3: 38, 4: 30}.get(n, 24)
+        return {1: 44, 2: 40, 3: 32, 4: 26, 5: 22}.get(n, 20)
 
     def _clear_flash(self):
         self._hl = set()
@@ -511,11 +583,11 @@ class Game2048UI:
         self._hl = {(r, c) for r in range(self.size) for c in range(self.size)
                     if (old[r][c] == 0 and self.game.board[r][c] in (2, 4))
                     or (old[r][c] and self.game.board[r][c] == old[r][c] * 2)}
-        self.refresh()
+        merged = sorted((r, c) for (r, c) in self._hl
+                        if old[r][c] and self.game.board[r][c] == old[r][c] * 2)
+        self.refresh(pop_cells=merged)
         if gained:
             # pop the "+N" right over the first merged tile, not the board edge
-            merged = sorted((r, c) for (r, c) in self._hl
-                            if old[r][c] and self.game.board[r][c] == old[r][c] * 2)
             if merged:
                 r, c = merged[0]
                 x1, y1, x2, y2 = self._geom(r, c)
@@ -599,17 +671,60 @@ class Game2048UI:
             self._timers.append(self.root.after(25, lambda: self._tween_score(target)))
 
     # ================= keys / overlay =================
+    def _bind_wheel(self, on):
+        try:
+            if on:
+                self.side_canvas.bind_all('<MouseWheel>',
+                                          self._on_wheel, add='+')
+                self.side_canvas.bind_all('<Button-4>',
+                                          self._on_wheel, add='+')
+                self.side_canvas.bind_all('<Button-5>',
+                                          self._on_wheel, add='+')
+            else:
+                self.side_canvas.unbind_all('<MouseWheel>')
+                self.side_canvas.unbind_all('<Button-4>')
+                self.side_canvas.unbind_all('<Button-5>')
+        except Exception:
+            pass
+
+    def _on_wheel(self, e):
+        try:
+            if getattr(e, 'num', None) == 4:
+                self.side_canvas.yview_scroll(-1, 'units')
+            elif getattr(e, 'num', None) == 5:
+                self.side_canvas.yview_scroll(1, 'units')
+            else:
+                self.side_canvas.yview_scroll(-1 * int(e.delta / 120), 'units')
+        except Exception:
+            pass
+        return 'break'
+
     def _bind_keys(self):
         for keysym, d in (('Up', 0), ('Right', 1), ('Down', 2), ('Left', 3)):
             self.root.bind(f'<{keysym}>', lambda e, d=d: self.do_move(d))
-        for ch, d in (('w', 0), ('d', 1), ('s', 2), ('a', 3)):
+        for ch, d in (('w', 0), ('d', 1), ('s', 2), ('a', 3),
+                      ('k', 0), ('l', 1), ('j', 2), ('h', 3)):
             self.root.bind(f'<{ch}>', lambda e, d=d: self.do_move(d))
             self.root.bind(f'<{ch.upper()}>', lambda e, d=d: self.do_move(d))
         self.root.bind('<u>', lambda e: self.undo())
         self.root.bind('<U>', lambda e: self.undo())
         self.root.bind('<n>', lambda e: self.new_game())
         self.root.bind('<N>', lambda e: self.new_game())
+        self.root.bind('<t>', lambda e: self.toggle_theme())
+        self.root.bind('<T>', lambda e: self.toggle_theme())
         self.root.bind('<space>', lambda e: self.toggle_auto_play())
+        self.root.bind('<?>', lambda e: self.show_help())
+        self.root.bind('<F1>', lambda e: self.show_help())
+
+    def show_help(self):
+        messagebox.showinfo(
+            'How to play',
+            'Slide tiles with Arrow keys / WASD (or HJKL, or the D-pad).\n'
+            'Equal tiles merge. Reach 2048 to win.\n\n'
+            'U — undo   N — new game   T — theme\n'
+            'Space — start/stop AI   F1 or ? — this help\n\n'
+            'AI Pilot: pick BFS / DFS / A*, tune depth, then Start AI.\n'
+            'Tournament races all three solvers headlessly.')
 
     def hide_overlay(self):
         for i in self._overlay_ids:
@@ -641,9 +756,10 @@ class Game2048UI:
             self.PAD, self.PAD, w - self.PAD, w - self.PAD,
             fill=self.T['overlay'], stipple='gray50', outline=''))
         self._overlay_ids.append(self.canvas.create_text(
-            cx, cy - 80, text=title, fill=color, font=('Segoe UI', 40, 'bold')))
+            cx, cy - 84, text=title, fill=color, font=('Segoe UI', 44, 'bold')))
         self._overlay_ids.append(self.canvas.create_text(
-            cx, cy - 24, text=subtitle, fill=self.T['ink'], font=('Segoe UI', 12)))
+            cx, cy - 28, text=subtitle, fill=self.T['ink'], font=('Segoe UI', 12),
+            width=w - 120, justify='center'))
         if keep_playing:
             again = tk.Button(self.canvas, text='New Game', bg=ACCENT, fg='white',
                               relief='flat', bd=0, cursor='hand2', padx=14, pady=7,
@@ -668,7 +784,7 @@ class Game2048UI:
         if any(2048 in row for row in self.game.board):
             self.win_celebrated = True
             self.stop_auto()
-            self.show_overlay('YOU WIN!', f'2048 reached · score {self.game.score}', '#e8a020')
+            self.show_overlay('🏆 YOU WIN!', f'2048 reached · score {self.game.score}', '#e8a020')
             self.status_var.set('Champion — 2048! Keep going or start fresh.')
 
     def check_over(self):
@@ -711,6 +827,9 @@ class Game2048UI:
         try:
             self.ai_stripe.config(bg=ALGO_COLOR[algo])
             self._readout_frame.config(highlightbackground=self.T['panel_edge'])
+            if not self.auto_playing:
+                self._set_btn_bg(self.play_btn, ALGO_COLOR[algo])
+            self.sub_lbl.config(fg=ALGO_COLOR[algo])
         except Exception:
             pass
         if not self.auto_playing:
@@ -737,7 +856,8 @@ class Game2048UI:
         self.hide_overlay()
         self.solver = SOLVER_CLASSES[algo](self.game)
         self.auto_playing = True
-        self.play_btn.config(text='■  Stop AI', bg='#c2573b')
+        self._set_btn_bg(self.play_btn, '#c2573b')
+        self.play_btn.config(text='■  Stop AI')
         self.status_var.set(f'{algo} autopilot · depth {self.depth_var.get()} · Space to stop.')
         self.root.after(80, self._ai_step)
 
@@ -746,7 +866,9 @@ class Game2048UI:
             return
         self.auto_playing = False
         try:
-            self.play_btn.config(text='▶  Start AI', bg=ALGO_COLOR[self.algo_var.get()])
+            self._set_btn_bg(self.play_btn, ALGO_COLOR[self.algo_var.get()])
+            self.play_btn.config(text='▶  Start AI')
+            self.ai_var.set(f'{self.algo_var.get()} idle — press Start AI.')
         except Exception:
             pass
 
@@ -837,7 +959,13 @@ class Game2048UI:
 
 
 def main():
+    try:  # crisp text on Windows HiDPI
+        import ctypes
+        ctypes.windll.shcore.SetProcessDpiAwareness(1)
+    except Exception:
+        pass
     root = tk.Tk()
+    root.title('2048 · AI Lab — BFS / DFS / A*')
     try:
         f = tkfont.nametofont('TkDefaultFont')
         f.configure(family='Segoe UI', size=10)
@@ -850,13 +978,17 @@ def main():
         pass
     app = Game2048UI(root)
     root.protocol('WM_DELETE_WINDOW', app.on_close)
-    # center
+    # center, but clamp to the actual screen so nothing is cut off
     root.update_idletasks()
     w, h = root.winfo_reqwidth(), root.winfo_reqheight()
-    x = (root.winfo_screenwidth() - w) // 2
-    y = max(10, (root.winfo_screenheight() - h) // 5)
+    sw, sh = root.winfo_screenwidth(), root.winfo_screenheight()
+    w = min(w, max(600, sw - 40))
+    h = min(h, max(500, sh - 80))
+    x = max(0, (sw - w) // 2)
+    y = max(0, (sh - h) // 3)
     root.geometry(f'{w}x{h}+{x}+{y}')
-    root.resizable(False, False)
+    root.minsize(760, 560)
+    root.resizable(True, True)
     root.mainloop()
 
 
